@@ -1,0 +1,574 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:mailkb-db:schema:domain-pack:v1",
+  "title": "mailkb_db Domain Pack (domain-pack.v1)",
+  "description": "Declarative JSON Domain Pack schema for mailkb_db. Moves all industry-specific entity/SKU rules, custom dimensions, organizations, topics, intents, and amount/price extraction rules into external JSON files so the mailkb_db binary remains 100% domain-agnostic.",
+  "type": "object",
+  "required": ["schema_version", "pack_id"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Optional JSON Schema reference path or URI for editor tooling."
+    },
+    "schema_version": {
+      "type": "string",
+      "const": "domain-pack.v1",
+      "description": "Schema version identifier. Must equal 'domain-pack.v1'."
+    },
+    "pack_id": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S",
+      "description": "Unique non-empty identifier for this domain pack (for example, 'b2b-hardware-example'). Duplicate pack_ids across loaded pack files are rejected.",
+      "examples": ["b2b-hardware-example", "saas-commercial-example"]
+    },
+    "name": {
+      "type": "string",
+      "default": "",
+      "description": "Human-readable display name for this pack.",
+      "examples": ["B2B Industrial Hardware"]
+    },
+    "version": {
+      "type": "string",
+      "default": "1.0",
+      "description": "Semantic or revision string for the pack definition.",
+      "examples": ["1.0", "2026.1"]
+    },
+    "description": {
+      "type": "string",
+      "default": "",
+      "description": "Short summary of the industry, mailbox corpus, or workflow targeted by this pack."
+    },
+    "identity": {
+      "$ref": "#/$defs/PackIdentity",
+      "default": {}
+    },
+    "entity_rules": {
+      "$ref": "#/$defs/EntityRules",
+      "default": {}
+    },
+    "dimensions": {
+      "type": "array",
+      "default": [],
+      "description": "Custom domain dimensions (e.g., 'standards', 'subsystems', 'compliance', 'deployment_tier') indexed into custom_dims_json, message_entities, and domain_lexicon.",
+      "items": {
+        "$ref": "#/$defs/DimensionSpec"
+      }
+    },
+    "organizations": {
+      "$ref": "#/$defs/OrgRules",
+      "default": {}
+    },
+    "topics": {
+      "$ref": "#/$defs/TopicRules",
+      "default": {}
+    },
+    "intents": {
+      "type": "array",
+      "default": [],
+      "description": "Priority-ordered message intent classification rules (evaluated highest priority first; ties preserve declaration order).",
+      "items": {
+        "$ref": "#/$defs/IntentRule"
+      }
+    },
+    "amounts": {
+      "$ref": "#/$defs/AmountRules",
+      "default": {}
+    }
+  },
+  "$defs": {
+    "RegexPattern": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S",
+      "not": {
+        "enum": [
+          ".*",
+          ".+",
+          "^.*$",
+          "^.+$",
+          "\\d+",
+          "^\\d+$",
+          "[a-z]+",
+          "[a-z0-9]+",
+          "\\w+"
+        ]
+      },
+      "description": "Hybrid regex pattern compiled by mailkb_core::CompiledPattern::compile (case-insensitive). Patterns without lookarounds use standard Rust regex::Regex (supports \\b, capturing groups (...), character classes, Unicode). Patterns containing '(?<!', '(?!', or '(?=' automatically route to the ReDoS-safe MiniRegex engine (supports ASCII \\b, \\s, \\d, character classes [...], bounded quantifiers, (?:...) groups, alternation |, negative lookbehind '(?<![...])', negative lookahead '(?![...])' / '(?!lit)', and positive lookahead '(?=[...])'; MiniRegex does not treat ^/$ as anchors or expand $1 capture templates). Avoid hazard patterns that match empty strings or generic prose like 'hello world 12345 2026-01-01 test status update'.",
+      "examples": [
+        "\\b(ACME-SW-\\d{3,4})(?:-[A-Z0-9]{1,8})*\\b",
+        "(?<![A-Za-z0-9])ACME-GW-\\d{3,4}(?:-[A-Z0-9]{1,6})*(?![A-Za-z0-9])"
+      ]
+    },
+    "StdRegexPattern": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "\\S",
+      "description": "Standard Rust regex pattern compiled directly with regex::RegexBuilder (case-insensitive). Lookarounds '(?<!', '(?!', '(?=' are NOT supported here; use standard capturing groups and anchors like '^(ACME-GW-\\\\d{3,4})'.",
+      "examples": ["^(ACME-GW-\\d{3,4})", "^(NS-ADD-[A-Z]+)"]
+    },
+    "PackIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Identity hints used to classify message direction (internal, external_inbound, external_outbound, system_notice) and suppress signature/logo attachment noise. When self_emails/internal_domains are omitted, mailkb_db auto-infers them from Sent mailboxes during sync.",
+      "properties": {
+        "self_emails": {
+          "type": "array",
+          "default": [],
+          "description": "Owner email addresses (lowercased at compile time).",
+          "items": { "type": "string" },
+          "examples": [["sales-ops@acme-industrial.example"]]
+        },
+        "self_name_tokens": {
+          "type": "array",
+          "default": [],
+          "description": "Owner display name or signature tokens.",
+          "items": { "type": "string" },
+          "examples": [["Acme Sales Desk"]]
+        },
+        "internal_domains": {
+          "type": "array",
+          "default": [],
+          "description": "Internal organization email domains (do not put consumer freemail domains here).",
+          "items": { "type": "string" },
+          "examples": [["acme-industrial.example"]]
+        },
+        "system_senders": {
+          "type": "array",
+          "default": [],
+          "description": "Exact automated sender email addresses classified as system_notice.",
+          "items": { "type": "string" },
+          "examples": [["noreply@acme-industrial.example"]]
+        },
+        "system_domains": {
+          "type": "array",
+          "default": [],
+          "description": "Automated notification sender domains classified as system_notice.",
+          "items": { "type": "string" },
+          "examples": [["notifications.acme-industrial.example"]]
+        },
+        "system_subject_prefixes": {
+          "type": "array",
+          "default": [],
+          "description": "Subject prefixes indicating automated system mail.",
+          "items": { "type": "string" },
+          "examples": [["[ERP-AUTO]", "Automatic reply:"]]
+        },
+        "system_body_markers": {
+          "type": "array",
+          "default": [],
+          "description": "Body text markers indicating automated notifications.",
+          "items": { "type": "string" },
+          "examples": [["This is an automated system message"]]
+        },
+        "noise_attachment_prefixes": {
+          "type": "array",
+          "default": [],
+          "description": "Filename prefixes for boilerplate inline logos or signature banners flagged as is_noise=1.",
+          "items": { "type": "string" },
+          "examples": [["acme_logo", "email_banner", "image00"]]
+        }
+      }
+    },
+    "EntityRules": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Rules for extracting structured entity/SKU codes (entity_type='item_code'), assigning product/entity categories, and filtering false positives.",
+      "properties": {
+        "default_category": {
+          "type": "string",
+          "default": "General",
+          "description": "Fallback category assigned when no code_pattern or category_fallback matches.",
+          "examples": ["General"]
+        },
+        "code_patterns": {
+          "type": "array",
+          "default": [],
+          "description": "Ordered regex rules matching SKU, model, plan, or part numbers.",
+          "items": { "$ref": "#/$defs/CodePatternRule" }
+        },
+        "category_fallbacks": {
+          "type": "array",
+          "default": [],
+          "description": "Keyword-based category classification rules evaluated when no explicit code_pattern determines a category.",
+          "items": { "$ref": "#/$defs/CategoryFallbackRule" }
+        },
+        "exclude_code_tokens": {
+          "type": "array",
+          "default": [],
+          "description": "Uppercased false-positive code tokens (e.g., 'ISO-9001', 'UTF-8', 'PO-BOX') excluded from item_code entities.",
+          "items": { "type": "string" },
+          "examples": [["ISO-9001", "UTF-8", "PO-BOX"]]
+        }
+      }
+    },
+    "CodePatternRule": {
+      "type": "object",
+      "required": ["pattern"],
+      "additionalProperties": false,
+      "description": "Regex rule extracting a domain entity/SKU token and classifying its category and sub_group.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "default": "",
+          "description": "Human-readable identifier for diagnostics and validation messages.",
+          "examples": ["acme_switch"]
+        },
+        "pattern": {
+          "$ref": "#/$defs/RegexPattern",
+          "description": "Regex matching the entity/SKU token. Use word boundaries \\b...\\b or lookarounds (?<![A-Za-z0-9])...(?![A-Za-z0-9])."
+        },
+        "category": {
+          "type": "string",
+          "default": "General",
+          "description": "High-level product family or entity category.",
+          "examples": ["Switch", "Gateway", "EnterprisePlan"]
+        },
+        "sub_group": {
+          "type": ["string", "null"],
+          "default": null,
+          "description": "Optional static string (e.g. 'ACME-SFP') or capture template (e.g. '$1' or 'SW-$1') for base series grouping. Note: $1..$9 templates expand only when 'pattern' uses standard Rust regex (no lookarounds); use 'series_regex' when 'pattern' uses MiniRegex lookarounds.",
+          "examples": ["$1", "ACME-SFP", null]
+        },
+        "series_regex": {
+          "oneOf": [
+            { "$ref": "#/$defs/StdRegexPattern" },
+            { "type": "null" },
+            { "type": "string", "maxLength": 0 }
+          ],
+          "default": null,
+          "description": "Optional standard Rust regex run against the matched token to extract sub_group from capture group 1 when sub_group is unset. Cannot use lookarounds.",
+          "examples": ["^(ACME-GW-\\d{3,4})", null]
+        },
+        "priority": {
+          "type": "integer",
+          "default": 0,
+          "description": "Evaluation priority (higher runs first; ties preserve JSON order).",
+          "examples": [100, 80]
+        },
+        "exclude_if_matches": {
+          "type": "array",
+          "default": [],
+          "description": "Exclusion regexes; if any matches the candidate token, the match is discarded.",
+          "items": { "$ref": "#/$defs/RegexPattern" }
+        },
+        "extra_terms": {
+          "type": "array",
+          "default": [],
+          "description": "Supplemental FTS search terms associated with matched entities.",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "CategoryFallbackRule": {
+      "type": "object",
+      "required": ["category"],
+      "additionalProperties": false,
+      "description": "Prose/keyword fallback rule assigning a category when no explicit SKU/entity code matched.",
+      "properties": {
+        "category": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S",
+          "description": "Fallback category label.",
+          "examples": ["Switch", "ProfessionalServices"]
+        },
+        "patterns": {
+          "type": "array",
+          "default": [],
+          "description": "Regex patterns matched against subject and body text.",
+          "items": { "$ref": "#/$defs/RegexPattern" }
+        },
+        "priority": {
+          "type": "integer",
+          "default": 0,
+          "description": "Evaluation priority (higher runs first)."
+        }
+      }
+    },
+    "DimensionSpec": {
+      "type": "object",
+      "required": ["name"],
+      "additionalProperties": false,
+      "description": "User-defined domain taxonomy dimension extracted into message_entities, custom_dims_json, and domain_lexicon.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S",
+          "description": "Dimension key stored in custom_dims_json and domain_lexicon.dimension (e.g. 'standards', 'subsystems', 'compliance').",
+          "examples": ["standards", "subsystems", "compliance", "deployment_tier"]
+        },
+        "entity_type": {
+          "type": "string",
+          "default": "",
+          "description": "Value stored in message_entities.entity_type for hits in this dimension (defaults to 'name' if empty).",
+          "examples": ["standard", "subsystem", "compliance"]
+        },
+        "entries": {
+          "type": "array",
+          "default": [],
+          "description": "Lexicon entries belonging to this dimension.",
+          "items": { "$ref": "#/$defs/LexiconRuleEntry" }
+        }
+      }
+    },
+    "LexiconRuleEntry": {
+      "type": "object",
+      "required": ["key"],
+      "additionalProperties": false,
+      "description": "Single normalized concept inside a custom dimension.",
+      "properties": {
+        "key": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S",
+          "description": "Stable canonical key for this entry (e.g. 'EN-50155', 'SOC2_Type_II').",
+          "examples": ["EN-50155", "SOC2_Type_II"]
+        },
+        "canonical_name": {
+          "type": "string",
+          "default": "",
+          "description": "Display name (defaults to 'key' when omitted or empty)."
+        },
+        "patterns": {
+          "type": "array",
+          "default": [],
+          "description": "Regexes detecting mentions of this concept in email text.",
+          "items": { "$ref": "#/$defs/RegexPattern" }
+        },
+        "aliases": {
+          "type": "array",
+          "default": [],
+          "description": "Searchable alias strings seeded into domain_lexicon.aliases.",
+          "items": { "type": "string" }
+        },
+        "metadata": {
+          "default": null,
+          "description": "Arbitrary JSON metadata stored in domain_lexicon.metadata_json (typically an object; null becomes '{}').",
+          "examples": [{ "sector": "rail" }]
+        }
+      }
+    },
+    "OrgRules": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Organization normalization, domain/email lookup tables, and exclusion lists.",
+      "properties": {
+        "exclude_domains": {
+          "type": "array",
+          "default": [],
+          "description": "Domains ignored when inferring organizations (e.g. consumer freemail providers).",
+          "items": { "type": "string" },
+          "examples": [["gmail.com", "outlook.com"]]
+        },
+        "exclude_names": {
+          "type": "array",
+          "default": [],
+          "description": "Generic organization display names suppressed from org_tags.",
+          "items": { "type": "string" },
+          "examples": [["unknown", "sales", "support"]]
+        },
+        "domain_to_org": {
+          "type": "object",
+          "default": {},
+          "description": "Direct sender/recipient domain (lowercased) to canonical organization name mapping.",
+          "additionalProperties": { "type": "string" },
+          "examples": [{ "gridworks-eng.example": "GridWorks Engineering Ltd" }]
+        },
+        "email_to_org": {
+          "type": "object",
+          "default": {},
+          "description": "Exact email address (lowercased) to canonical organization name mapping.",
+          "additionalProperties": { "type": "string" },
+          "examples": [{ "procurement@bluewave-dist.example": "BlueWave Distribution Inc" }]
+        },
+        "entries": {
+          "type": "array",
+          "default": [],
+          "description": "Detailed organization lexicon entries combining domains, emails, body/subject patterns, and metadata.",
+          "items": { "$ref": "#/$defs/OrgRuleEntry" }
+        }
+      }
+    },
+    "OrgRuleEntry": {
+      "type": "object",
+      "required": ["canonical_name"],
+      "additionalProperties": false,
+      "description": "Canonical organization record with domains, emails, text patterns, and aliases.",
+      "properties": {
+        "canonical_name": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S",
+          "description": "Canonical organization name recorded in org_tags and message_amounts.org_name.",
+          "examples": ["GridWorks Engineering Ltd"]
+        },
+        "patterns": {
+          "type": "array",
+          "default": [],
+          "description": "Regex patterns matching organization mentions inside subjects or bodies.",
+          "items": { "$ref": "#/$defs/RegexPattern" }
+        },
+        "domains": {
+          "type": "array",
+          "default": [],
+          "description": "Domains auto-registered in domain_to_org pointing to canonical_name.",
+          "items": { "type": "string" }
+        },
+        "emails": {
+          "type": "array",
+          "default": [],
+          "description": "Exact email addresses auto-registered in email_to_org pointing to canonical_name.",
+          "items": { "type": "string" }
+        },
+        "aliases": {
+          "type": "array",
+          "default": [],
+          "description": "Alternative names/abbreviations seeded into domain_lexicon.",
+          "items": { "type": "string" }
+        },
+        "metadata": {
+          "default": null,
+          "description": "Arbitrary JSON metadata stored in domain_lexicon.metadata_json.",
+          "examples": [{ "tier": "strategic_si", "vertical": "energy" }]
+        }
+      }
+    },
+    "TopicRules": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Project, deal, matter, or topic extraction rules and generic subject suffix cleanup patterns.",
+      "properties": {
+        "generic_suffix_patterns": {
+          "type": "array",
+          "default": [],
+          "description": "Regexes identifying generic subject suffixes or boilerplate markers to trim when inferring fallback topics.",
+          "items": { "$ref": "#/$defs/RegexPattern" }
+        },
+        "entries": {
+          "type": "array",
+          "default": [],
+          "description": "Named project/topic/case entries detected across subject and body text.",
+          "items": { "$ref": "#/$defs/TopicRuleEntry" }
+        }
+      }
+    },
+    "TopicRuleEntry": {
+      "type": "object",
+      "required": ["canonical_name"],
+      "additionalProperties": false,
+      "description": "Canonical topic or project definition.",
+      "properties": {
+        "canonical_name": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S",
+          "description": "Canonical topic/project name stored in topic_tags and message_amounts.topic_name.",
+          "examples": ["Northbay Substation Phase 2"]
+        },
+        "patterns": {
+          "type": "array",
+          "default": [],
+          "description": "Regexes matching this topic or project code.",
+          "items": { "$ref": "#/$defs/RegexPattern" }
+        },
+        "aliases": {
+          "type": "array",
+          "default": [],
+          "description": "Alternative topic names seeded into domain_lexicon.",
+          "items": { "type": "string" }
+        },
+        "metadata": {
+          "default": null,
+          "description": "Arbitrary JSON metadata stored in domain_lexicon.metadata_json."
+        }
+      }
+    },
+    "IntentRule": {
+      "type": "object",
+      "required": ["intent"],
+      "additionalProperties": false,
+      "description": "Priority-ordered rule classifying message intent_type.",
+      "properties": {
+        "intent": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S",
+          "description": "Canonical intent label stored in mail_messages.intent_type.",
+          "examples": ["rfq_quote", "purchase_order", "rma_support", "renewal"]
+        },
+        "priority": {
+          "type": "integer",
+          "default": 0,
+          "description": "Higher priority rules are evaluated first."
+        },
+        "patterns": {
+          "type": "array",
+          "default": [],
+          "description": "Regexes matched against message subject and body text.",
+          "items": { "$ref": "#/$defs/RegexPattern" }
+        }
+      }
+    },
+    "AmountRules": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Commercial amount/price extraction exclusions, semantic type rules, and currency normalization aliases.",
+      "properties": {
+        "exclude_subject_patterns": {
+          "type": "array",
+          "default": [],
+          "description": "Subject regexes that suppress amount extraction (e.g. newsletters, webinar invites, HR announcements).",
+          "items": { "$ref": "#/$defs/RegexPattern" }
+        },
+        "type_rules": {
+          "type": "array",
+          "default": [],
+          "description": "Priority-ordered rules classifying extracted amounts into domain-specific amount_types.",
+          "items": { "$ref": "#/$defs/AmountTypeRule" }
+        },
+        "currency_aliases": {
+          "type": "object",
+          "default": {},
+          "description": "Map from raw currency symbols or codes to normalized ISO-4217 currency codes (keys and values uppercased at compile time).",
+          "additionalProperties": { "type": "string" },
+          "examples": [{ "US$": "USD", "RMB": "CNY", "€": "EUR" }]
+        }
+      }
+    },
+    "AmountTypeRule": {
+      "type": "object",
+      "required": ["amount_type"],
+      "additionalProperties": false,
+      "description": "Rule assigning amount_type (and optional confidence) to extracted monetary lines or table rows.",
+      "properties": {
+        "amount_type": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "\\S",
+          "description": "Semantic amount classification stored in message_amounts.amount_type.",
+          "examples": ["quote", "order_price", "special_price", "invoice", "contract_acv"]
+        },
+        "confidence": {
+          "type": ["string", "null"],
+          "default": null,
+          "description": "Optional confidence tag override ('high', 'medium', 'low').",
+          "examples": ["high", "medium", null]
+        },
+        "priority": {
+          "type": "integer",
+          "default": 0,
+          "description": "Higher priority rules are evaluated first."
+        },
+        "patterns": {
+          "type": "array",
+          "default": [],
+          "description": "Regexes matched against context snippet, table header, or message text.",
+          "items": { "$ref": "#/$defs/RegexPattern" }
+        }
+      }
+    }
+  }
+}

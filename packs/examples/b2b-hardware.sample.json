@@ -1,0 +1,628 @@
+{
+  "schema_version": "domain-pack.v1",
+  "pack_id": "b2b-hardware-example",
+  "name": "B2B Industrial & Networking Hardware (Sample)",
+  "version": "1.0",
+  "description": "100% fictional reference domain pack demonstrating SKU/series extraction, industrial standards/subsystems custom dimensions, distributor/SI orgs, project topics, commercial intents, and quote/PO price rules.",
+  "identity": {
+    "self_emails": [
+      "sales-ops@acme-industrial.example",
+      "quotes@acme-industrial.example"
+    ],
+    "self_name_tokens": [
+      "Acme Sales Desk",
+      "Acme Industrial Corp"
+    ],
+    "internal_domains": [
+      "acme-industrial.example",
+      "acme-corp.example"
+    ],
+    "system_senders": [
+      "noreply@acme-industrial.example",
+      "erp-alerts@acme-industrial.example",
+      "mailer-daemon@acme-industrial.example"
+    ],
+    "system_domains": [
+      "notifications.acme-industrial.example"
+    ],
+    "system_subject_prefixes": [
+      "[ERP-AUTO]",
+      "[RMA-PORTAL]",
+      "Automatic reply:",
+      "Undeliverable:"
+    ],
+    "system_body_markers": [
+      "This is an automated system message",
+      "Please do not reply directly to this email"
+    ],
+    "noise_attachment_prefixes": [
+      "acme_logo",
+      "email_banner",
+      "signature_badge",
+      "image00"
+    ]
+  },
+  "entity_rules": {
+    "default_category": "General",
+    "exclude_code_tokens": [
+      "ISO-9001",
+      "ISO-14001",
+      "IEC-61000",
+      "IEEE-802",
+      "UTF-8",
+      "RFC-2047",
+      "PO-BOX",
+      "REV-01",
+      "VER-1",
+      "WIN-11"
+    ],
+    "code_patterns": [
+      {
+        "name": "acme_switch",
+        "pattern": "\\b(ACME-SW-\\d{3,4})(?:-[A-Z0-9]{1,8})*\\b",
+        "category": "Switch",
+        "sub_group": "$1",
+        "priority": 100,
+        "exclude_if_matches": [
+          "\\bACME-SW-0000\\b"
+        ],
+        "extra_terms": [
+          "ethernet switch",
+          "din-rail switch"
+        ]
+      },
+      {
+        "name": "acme_gateway_lookaround",
+        "pattern": "(?<![A-Za-z0-9])ACME-GW-\\d{3,4}[A-Z]?(?:-[A-Z0-9]{1,6})*(?![A-Za-z0-9])",
+        "category": "Gateway",
+        "series_regex": "^(ACME-GW-\\d{3,4})",
+        "priority": 95,
+        "exclude_if_matches": [],
+        "extra_terms": [
+          "protocol gateway",
+          "modbus gateway"
+        ]
+      },
+      {
+        "name": "acme_router",
+        "pattern": "\\b(ACME-RT-\\d{3,4})(?:-[A-Z0-9]{1,6})*\\b",
+        "category": "Router",
+        "sub_group": "$1",
+        "priority": 90,
+        "exclude_if_matches": [],
+        "extra_terms": [
+          "industrial router",
+          "cellular vpn"
+        ]
+      },
+      {
+        "name": "acme_wireless",
+        "pattern": "\\b(ACME-AP-\\d{3,4})(?:-[A-Z0-9]{1,6})*\\b",
+        "category": "Wireless",
+        "sub_group": "$1",
+        "priority": 85,
+        "exclude_if_matches": [],
+        "extra_terms": [
+          "industrial wifi",
+          "access point"
+        ]
+      },
+      {
+        "name": "acme_edge_compute",
+        "pattern": "\\b(ACME-IPC-\\d{3,4})(?:-[A-Z0-9]{1,8})*\\b",
+        "category": "EdgeCompute",
+        "sub_group": "$1",
+        "priority": 80,
+        "exclude_if_matches": [],
+        "extra_terms": [
+          "edge computer",
+          "fanless ipc"
+        ]
+      },
+      {
+        "name": "acme_io_module",
+        "pattern": "\\b(ACME-IO-\\d{3,4})(?:-[A-Z0-9]{1,6})*\\b",
+        "category": "IO",
+        "sub_group": "$1",
+        "priority": 75,
+        "exclude_if_matches": [],
+        "extra_terms": [
+          "remote io",
+          "daq module"
+        ]
+      },
+      {
+        "name": "acme_sfp_optic",
+        "pattern": "\\bACME-SFP-(?:1G|10G|SX|LX|ZX)-[A-Z0-9-]{2,12}\\b",
+        "category": "Accessory",
+        "sub_group": "ACME-SFP",
+        "priority": 70,
+        "exclude_if_matches": [],
+        "extra_terms": [
+          "sfp transceiver",
+          "fiber module"
+        ]
+      },
+      {
+        "name": "acme_power_supply",
+        "pattern": "\\b(ACME-PWR-\\d{2,4})(?:-[A-Z0-9]{1,4})*\\b",
+        "category": "Power",
+        "sub_group": "$1",
+        "priority": 65,
+        "exclude_if_matches": [],
+        "extra_terms": [
+          "din-rail psu",
+          "24vdc power"
+        ]
+      },
+      {
+        "name": "acme_management_software",
+        "pattern": "\\bACME-(?:NMS|CFG)-(?:PRO|ENT|STD)(?:-V\\d+)?\\b",
+        "category": "Software",
+        "sub_group": "ACME-NMS",
+        "priority": 60,
+        "exclude_if_matches": [],
+        "extra_terms": [
+          "network management license"
+        ]
+      }
+    ],
+    "category_fallbacks": [
+      {
+        "category": "Switch",
+        "priority": 50,
+        "patterns": [
+          "\\b(?:L2|L3)\\s+managed\\s+switch\\b",
+          "\\bPoE\\+?\\s+industrial\\s+switch\\b"
+        ]
+      },
+      {
+        "category": "Gateway",
+        "priority": 45,
+        "patterns": [
+          "\\bModbus\\s+(?:TCP|RTU)\\s+gateway\\b",
+          "\\bOPC\\s*UA\\s+gateway\\b"
+        ]
+      },
+      {
+        "category": "Power",
+        "priority": 40,
+        "patterns": [
+          "\\bDIN-rail\\s+power\\s+supply\\b",
+          "\\bredundant\\s+PSU\\b"
+        ]
+      },
+      {
+        "category": "Accessory",
+        "priority": 30,
+        "patterns": [
+          "\\bSFP\\+?\\s+transceiver\\b",
+          "\\bDIN-rail\\s+mounting\\s+kit\\b"
+        ]
+      }
+    ]
+  },
+  "dimensions": [
+    {
+      "name": "standards",
+      "entity_type": "standard",
+      "entries": [
+        {
+          "key": "IEC-61850-3",
+          "canonical_name": "IEC 61850-3 Substation EMC",
+          "patterns": [
+            "\\bIEC\\s*-?\\s*61850(?:-3)?\\b"
+          ],
+          "aliases": [
+            "IEC61850",
+            "Substation EMC"
+          ],
+          "metadata": {
+            "sector": "power_grid"
+          }
+        },
+        {
+          "key": "EN-50155",
+          "canonical_name": "EN 50155 Rolling Stock Rail",
+          "patterns": [
+            "\\bEN\\s*-?\\s*50155\\b"
+          ],
+          "aliases": [
+            "EN50155",
+            "Rolling Stock"
+          ],
+          "metadata": {
+            "sector": "rail"
+          }
+        },
+        {
+          "key": "IEC-62443-4-2",
+          "canonical_name": "IEC 62443-4-2 Industrial Cybersecurity",
+          "patterns": [
+            "\\bIEC\\s*-?\\s*62443(?:-4-[12])?\\b"
+          ],
+          "aliases": [
+            "ISA-62443",
+            "IEC62443"
+          ],
+          "metadata": {
+            "sector": "cybersecurity"
+          }
+        },
+        {
+          "key": "UL-C1D2",
+          "canonical_name": "Class I Div 2 / ATEX Zone 2",
+          "patterns": [
+            "\\bClass\\s+I\\s+Div(?:ision)?\\s+2\\b",
+            "\\bC1D2\\b",
+            "\\bATEX\\s+Zone\\s+2\\b"
+          ],
+          "aliases": [
+            "ATEX Zone 2",
+            "Hazardous Location"
+          ],
+          "metadata": {
+            "sector": "oil_gas"
+          }
+        },
+        {
+          "key": "NEMA-TS2",
+          "canonical_name": "NEMA TS2 Traffic Control",
+          "patterns": [
+            "\\bNEMA\\s*-?\\s*TS\\s*-?\\s*2\\b"
+          ],
+          "aliases": [
+            "NEMA TS2"
+          ],
+          "metadata": {
+            "sector": "its_traffic"
+          }
+        }
+      ]
+    },
+    {
+      "name": "subsystems",
+      "entity_type": "subsystem",
+      "entries": [
+        {
+          "key": "SCADA",
+          "canonical_name": "SCADA & Telemetry",
+          "patterns": [
+            "\\bSCADA\\b",
+            "\\bRTU\\s+telemetry\\b"
+          ],
+          "aliases": [
+            "RTU Telemetry"
+          ],
+          "metadata": {
+            "layer": "control"
+          }
+        },
+        {
+          "key": "CCTV_Backbone",
+          "canonical_name": "CCTV Video Ring Backbone",
+          "patterns": [
+            "\\bCCTV\\b",
+            "\\bNVR\\b",
+            "\\bvideo\\s+backbone\\b"
+          ],
+          "aliases": [
+            "IP Video Ring"
+          ],
+          "metadata": {
+            "layer": "edge_network"
+          }
+        },
+        {
+          "key": "BMS_HVAC",
+          "canonical_name": "Building Management & BACnet",
+          "patterns": [
+            "\\bBMS\\b",
+            "\\bBACnet\\b",
+            "\\bHVAC\\s+network\\b"
+          ],
+          "aliases": [
+            "BACnet IP"
+          ],
+          "metadata": {
+            "layer": "facility"
+          }
+        },
+        {
+          "key": "AFC_Wayside",
+          "canonical_name": "AFC & Wayside Signaling",
+          "patterns": [
+            "\\bAFC\\b",
+            "\\bwayside\\s+signaling\\b"
+          ],
+          "aliases": [
+            "Wayside Telemetry"
+          ],
+          "metadata": {
+            "layer": "transit"
+          }
+        }
+      ]
+    }
+  ],
+  "organizations": {
+    "exclude_domains": [
+      "gmail.com",
+      "outlook.com",
+      "hotmail.com",
+      "yahoo.com",
+      "icloud.com",
+      "qq.com",
+      "163.com"
+    ],
+    "exclude_names": [
+      "unknown",
+      "sales",
+      "support",
+      "info",
+      "admin",
+      "team"
+    ],
+    "domain_to_org": {
+      "gridworks-eng.example": "GridWorks Engineering Ltd",
+      "metroline-transit.example": "MetroLine Transit Systems",
+      "apex-automation.example": "Apex Factory Automation"
+    },
+    "email_to_org": {
+      "procurement@bluewave-dist.example": "BlueWave Distribution Inc"
+    },
+    "entries": [
+      {
+        "canonical_name": "GridWorks Engineering Ltd",
+        "domains": [
+          "gridworks-eng.example"
+        ],
+        "emails": [],
+        "patterns": [
+          "\\bGridWorks\\s+Engineering\\b",
+          "\\bGridWorks\\b"
+        ],
+        "aliases": [
+          "GridWorks",
+          "GW Eng"
+        ],
+        "metadata": {
+          "tier": "strategic_si",
+          "vertical": "energy"
+        }
+      },
+      {
+        "canonical_name": "MetroLine Transit Systems",
+        "domains": [
+          "metroline-transit.example"
+        ],
+        "emails": [],
+        "patterns": [
+          "\\bMetroLine\\s+Transit\\b",
+          "\\bMetroLine\\b"
+        ],
+        "aliases": [
+          "MetroLine",
+          "MLTS"
+        ],
+        "metadata": {
+          "tier": "end_operator",
+          "vertical": "rail"
+        }
+      },
+      {
+        "canonical_name": "Apex Factory Automation",
+        "domains": [
+          "apex-automation.example"
+        ],
+        "emails": [],
+        "patterns": [
+          "\\bApex\\s+(?:Factory\\s+)?Automation\\b"
+        ],
+        "aliases": [
+          "Apex Auto"
+        ],
+        "metadata": {
+          "tier": "oem",
+          "vertical": "manufacturing"
+        }
+      },
+      {
+        "canonical_name": "BlueWave Distribution Inc",
+        "domains": [
+          "bluewave-dist.example"
+        ],
+        "emails": [
+          "procurement@bluewave-dist.example"
+        ],
+        "patterns": [
+          "\\bBlueWave\\s+Dist(?:ribution)?\\b"
+        ],
+        "aliases": [
+          "BlueWave"
+        ],
+        "metadata": {
+          "tier": "distributor",
+          "region": "NA"
+        }
+      }
+    ]
+  },
+  "topics": {
+    "generic_suffix_patterns": [
+      "\\s*-\\s*quotation$",
+      "\\s*-\\s*follow\\s*up$",
+      "\\s*\\[external\\]$"
+    ],
+    "entries": [
+      {
+        "canonical_name": "Northbay Substation Phase 2",
+        "patterns": [
+          "\\bNorthbay\\s+Substation\\b",
+          "\\bNB-SUB-P2\\b"
+        ],
+        "aliases": [
+          "Northbay P2",
+          "NB-SUB-P2"
+        ],
+        "metadata": {
+          "year": 2026,
+          "vertical": "energy"
+        }
+      },
+      {
+        "canonical_name": "Harbor Rail Line C4",
+        "patterns": [
+          "\\bHarbor\\s+Rail\\s+Line\\s+C4\\b",
+          "\\bHRL-C4\\b"
+        ],
+        "aliases": [
+          "Harbor C4",
+          "HRL-C4"
+        ],
+        "metadata": {
+          "year": 2026,
+          "vertical": "rail"
+        }
+      },
+      {
+        "canonical_name": "Plant-7 Smart Conveyor Retrofit",
+        "patterns": [
+          "\\bPlant-?7\\s+(?:Smart\\s+)?Conveyor\\b",
+          "\\bP7-RETRO\\b"
+        ],
+        "aliases": [
+          "Plant-7 Retrofit",
+          "P7-RETRO"
+        ],
+        "metadata": {
+          "year": 2026,
+          "vertical": "manufacturing"
+        }
+      }
+    ]
+  },
+  "intents": [
+    {
+      "intent": "rfq_quote",
+      "priority": 100,
+      "patterns": [
+        "\\bRFQ\\b",
+        "\\brequest\\s+for\\s+quot(?:e|ation)\\b",
+        "\\bformal\\s+quote\\b",
+        "\\bunit\\s+price\\b",
+        "\\bpricing\\s+table\\b"
+      ]
+    },
+    {
+      "intent": "purchase_order",
+      "priority": 95,
+      "patterns": [
+        "\\bpurchase\\s+order\\b",
+        "\\bPO\\s*#\\s*[A-Z0-9-]+\\b",
+        "\\border\\s+confirmation\\b"
+      ]
+    },
+    {
+      "intent": "special_pricing_approval",
+      "priority": 90,
+      "patterns": [
+        "\\bspecial\\s+price\\s+request\\b",
+        "\\bSPR\\b",
+        "\\bproject\\s+discount\\s+approval\\b"
+      ]
+    },
+    {
+      "intent": "rma_support",
+      "priority": 80,
+      "patterns": [
+        "\\bRMA\\b",
+        "\\btroubleshooting\\b",
+        "\\bfirmware\\s+(?:upgrade|bug)\\b",
+        "\\breturn\\s+authorization\\b"
+      ]
+    },
+    {
+      "intent": "delivery_logistics",
+      "priority": 70,
+      "patterns": [
+        "\\blead\\s+time\\b",
+        "\\btracking\\s+number\\b",
+        "\\bshipment\\s+schedule\\b",
+        "\\bETD\\b",
+        "\\bETA\\b"
+      ]
+    },
+    {
+      "intent": "technical_spec",
+      "priority": 60,
+      "patterns": [
+        "\\bdatasheet\\b",
+        "\\bcompliance\\s+matrix\\b",
+        "\\bBOM\\s+review\\b",
+        "\\bpinout\\b"
+      ]
+    }
+  ],
+  "amounts": {
+    "exclude_subject_patterns": [
+      "\\bnewsletter\\b",
+      "\\bwebinar\\s+invite\\b",
+      "\\bholiday\\s+notice\\b",
+      "\\bpayroll\\b"
+    ],
+    "type_rules": [
+      {
+        "amount_type": "order_price",
+        "confidence": "high",
+        "priority": 100,
+        "patterns": [
+          "\\bpurchase\\s+order\\b",
+          "\\bPO\\s*#",
+          "\\border\\s+total\\b"
+        ]
+      },
+      {
+        "amount_type": "special_price",
+        "confidence": "high",
+        "priority": 90,
+        "patterns": [
+          "\\bspecial\\s+price\\b",
+          "\\bSPR\\b",
+          "\\bapproved\\s+discount\\b"
+        ]
+      },
+      {
+        "amount_type": "quote",
+        "confidence": "high",
+        "priority": 80,
+        "patterns": [
+          "\\bquotation\\b",
+          "\\bquote\\s*#",
+          "\\bRFQ\\b",
+          "\\bvalid\\s+until\\b"
+        ]
+      },
+      {
+        "amount_type": "budget_estimate",
+        "confidence": "medium",
+        "priority": 50,
+        "patterns": [
+          "\\bbudgetary\\b",
+          "\\brough\\s+estimate\\b",
+          "\\blist\\s+price\\b"
+        ]
+      }
+    ],
+    "currency_aliases": {
+      "US$": "USD",
+      "$": "USD",
+      "RMB": "CNY",
+      "¥": "CNY",
+      "€": "EUR",
+      "NTD": "TWD",
+      "NT$": "TWD",
+      "£": "GBP"
+    }
+  }
+}

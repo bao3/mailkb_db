@@ -1,0 +1,7 @@
+/target
+**/*.sqlite
+**/*.sqlite-*
+**/*.sha256
+**/*.stamp
+.DS_Store
+/packs/local/
